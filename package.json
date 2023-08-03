@@ -1,0 +1,35 @@
+{
+  "name": "ocean-current-rendering",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "webpack serve --mode development --open",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jshmsyc/ocean-current-rendering.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jshmsyc/ocean-current-rendering/issues"
+  },
+  "homepage": "https://github.com/jshmsyc/ocean-current-rendering#readme",
+  "devDependencies": {
+    "@types/node": "^20.4.6",
+    "html-webpack-plugin": "^5.5.3",
+    "typescript": "^5.1.6",
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1"
+  },
+  "dependencies": {
+    "css-loader": "^6.8.1",
+    "style-loader": "^3.3.3",
+    "three.js": "^0.77.1",
+    "ts-loader": "^9.4.4"
+  }
+}
