@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import * as dat from 'dat.gui';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
+import earcut from 'earcut';
 
 interface ModelData {
   points: number[][];
@@ -22,7 +23,6 @@ const colorMap = {
   hi, mi, lo
 }
 let currentDimension: string = 'salinity';
-//scene
 let currentScene = 'plane';
 
 let geometry = new THREE.BufferGeometry();
@@ -33,7 +33,7 @@ let light: THREE.AmbientLight;
 let modelData: ModelData;
 let stats: Stats;
 let controls: OrbitControls;
-let currentPoints: THREE.Points;
+let currentPoints: any;
 let data: Data = {
   salinity: [],
   temperature: [],
@@ -47,7 +47,6 @@ let minVelocity: number;
 let maxVelocity: number;
 
 document.body.onload = function () {
-  //init GUI
   initGui();
   initRender();
   initScene();
@@ -60,18 +59,21 @@ document.body.onload = function () {
 
   // create scene change button
   const sceneChangeButton = document.createElement('button');
-  sceneChangeButton.innerText = 'Plane';
+  sceneChangeButton.innerText = 'Sphere';
+  sceneChangeButton.style.fontSize = '16px';
   sceneChangeButton.style.position = 'absolute';
-  sceneChangeButton.style.top = '30px';
-  sceneChangeButton.style.left = '100px';
+  sceneChangeButton.style.top = '60px';
+  sceneChangeButton.style.right = '100px';
+  sceneChangeButton.style.width = '100px';
+  sceneChangeButton.style.height = '30px';
 
   sceneChangeButton.addEventListener('click', () => {
     if (currentScene === 'plane') {
-      sceneChangeButton.innerText = 'Sphere';
+      sceneChangeButton.innerText = 'Plane';
       currentScene = 'sphere';
       onSceneChange('plane');
     } else {
-      sceneChangeButton.innerText = 'Plane';
+      sceneChangeButton.innerText = 'Sphere';
       currentScene = 'plane';
       onSceneChange('sphere');
     }
@@ -136,47 +138,9 @@ function initModel() {
     ({ min: minSalinity, max: maxSalinity } = calculateDataRange(data.salinity, data.temperature, data.velocity, 'salinity'));
     ({ min: minTemperature, max: maxTemperature } = calculateDataRange(data.salinity, data.temperature, data.velocity, 'temperature'));
     ({ min: minVelocity, max: maxVelocity } = calculateDataRange(data.salinity, data.temperature, data.velocity, 'velocity'));
-    createModelGeometry();
+    setModelData(modelData.points, data.salinity, 'plane', minSalinity, maxSalinity);
   })
 }
-
-function createModelGeometry() {
-  const points: number[][] = modelData.points;
-  const positions: Float32Array = new Float32Array(points.length * 3);
-  const colors: Float32Array = new Float32Array(points.length * 3);
-  //calculate the center point 
-  const centerPoint: number[] = calculateCenterPoint(points);
-  //calculate the positions
-  for (let i = 0, j = 0; i < points.length; i++, j += 3) {
-    //positions
-    const point: number[] = points[i];
-    positions[j] = point[0] - centerPoint[0];
-    positions[j + 1] = point[1] - centerPoint[1];
-    positions[j + 2] = point[2] - centerPoint[2];
-  }
-  //calculate the colors
-  for (let i = 0, j = 0; i < points.length; i++, j += 3) {
-    const currentValue: number = data.salinity[i];
-    const colorValue: THREE.Color = getColorValue(currentValue, minSalinity, maxSalinity);
-    colors[j] = colorValue.r;
-    colors[j + 1] = colorValue.g;
-    colors[j + 2] = colorValue.b;
-  }
-  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const material = new THREE.PointsMaterial({ size: 3, vertexColors: true, sizeAttenuation: false });
-  const mesh: THREE.Points = new THREE.Points(geometry, material);
-  scene.add(mesh);
-  currentPoints = mesh;
-
-  const boundingBox: THREE.Box3 = new THREE.Box3();
-  boundingBox.setFromObject(mesh);
-  const maxAxisSize: number = Math.max(boundingBox.max.x - boundingBox.min.x, boundingBox.max.y - boundingBox.min.y, boundingBox.max.z - boundingBox.min.z);
-  const maxDistance: number = maxAxisSize / Math.tan((camera.fov / 2) * (Math.PI / 180));
-  camera.position.set(0, 0, maxDistance * 1.5);
-  camera.updateProjectionMatrix();
-}
-
 function vectorLength(vrctor: number[][]) {
   const length: number[] = [];
   for (let i = 0; i < vrctor.length; i++) {
@@ -287,69 +251,87 @@ function updateModelColor(dimension: string) {
     minCurrentValue = minTemperature;
     maxCurrentValue = maxTemperature;
   }
-  const positions: Float32Array = new Float32Array(modelData.points.length * 3);
-  let cameraPosition: THREE.Vector3 = new THREE.Vector3();
   if (currentScene === "sphere") {
-    for (let i = 0, j = 0; i < modelData.points.length; i++, j += 3) {
-      const point: number[] = modelData.points[i];
-      const longitude = point[0];
-      const latitude = point[1];
-      const depth = point[2];
-      const phi = (90 - latitude) * (Math.PI / 180);
-      const theta = (180 - longitude) * (Math.PI / 180);
-      const radius = 50 + depth;
-      const x = radius * Math.sin(phi) * Math.cos(theta);
-      const y = radius * Math.cos(phi);
-      const z = radius * Math.sin(phi) * Math.sin(theta);
-      positions[j] = x;
-      positions[j + 1] = y;
-      positions[j + 2] = z;
-
-      cameraPosition = new THREE.Vector3(0, 0, 200);
-    }
+    setModelData(modelData.points, updateData, "sphere", minCurrentValue, maxCurrentValue);
   } else if (currentScene === "plane") {
-    const centerPoint: number[] = calculateCenterPoint(modelData.points);
-    for (let i = 0, j = 0; i < modelData.points.length; i++, j += 3) {
-      const point: number[] = modelData.points[i];
-      positions[j] = point[0] - centerPoint[0];
-      positions[j + 1] = point[1] - centerPoint[1];
-      positions[j + 2] = point[2] - centerPoint[2];
-    }
-    cameraPosition = new THREE.Vector3(0, 0, 100);
+    setModelData(modelData.points, updateData, "plane", minCurrentValue, maxCurrentValue);
   }
-
-  const colors: Float32Array = new Float32Array(modelData.points.length * 3);
-  for (let i = 0, j = 0; i < modelData.points.length; i++, j += 3) {
-    const currentValue: number = updateData[i];
+  render();
+}
+function setModelData(posData: number[][], colorData: number[], type: string, minCurrentValue: number, maxCurrentValue: number) {
+  const positions: Float32Array = new Float32Array(posData.length * 3);
+  const colors: Float32Array = new Float32Array(posData.length * 3);
+  //caculate color
+  for (let i = 0, j = 0; i < posData.length; i++, j += 3) {
+    const currentValue: number = colorData[i];
     const colorValue: THREE.Color = getColorValue(currentValue, minCurrentValue, maxCurrentValue);
     colors[j] = colorValue.r;
     colors[j + 1] = colorValue.g;
     colors[j + 2] = colorValue.b;
   }
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  const material = new THREE.PointsMaterial({ size: 3, vertexColors: true, sizeAttenuation: false });
-  const mesh: THREE.Points = new THREE.Points(geometry, material);
 
-  if (currentPoints) {
-    scene.remove(currentPoints);
-    currentPoints.geometry.dispose();
+  //position
+  if (type === "sphere") {
+    const earthRadius = 50;
+    const earthGeometry = new THREE.SphereGeometry(earthRadius, 32, 32);
+    const earthMaterial = new THREE.MeshBasicMaterial({ color: 0x3b4cc0, transparent: true, opacity: 0.1 });
+    const earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
+    scene.add(earthMesh);
+    for (let i = 0, j = 0; i < posData.length; i++, j += 3) {
+      const point: number[] = posData[i];
+      const longitude = point[0];
+      const latitude = point[1];
+      const depth = point[2];
+      const phi = (90 - latitude) * (Math.PI / 180);
+      const theta = (180 - longitude) * (Math.PI / 180);
+      const radius = earthRadius - depth;
+      const x = radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.cos(phi);
+      const z = radius * Math.sin(phi) * Math.sin(theta);
+
+      positions[j] = x;
+      positions[j + 1] = y;
+      positions[j + 2] = z;
+    }
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({ size: 3, vertexColors: true, sizeAttenuation: false });
+    const mesh: THREE.Points = new THREE.Points(geometry, material);
+    earthMesh.add(mesh);
+    if (currentPoints) {
+      scene.remove(currentPoints);
+      currentPoints.geometry.dispose();
+    }
+    currentPoints = earthMesh;
+  } else if (type === "plane") {
+    const centerPoint: number[] = calculateCenterPoint(posData);
+    for (let i = 0, j = 0; i < posData.length; i++, j += 3) {
+      const point: number[] = posData[i];
+      positions[j] = point[0] - centerPoint[0];
+      positions[j + 1] = point[1] - centerPoint[1];
+      positions[j + 2] = point[2] - centerPoint[2];
+    }
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const material = new THREE.PointsMaterial({ size: 3, vertexColors: true, sizeAttenuation: false });
+    const mesh: THREE.Points = new THREE.Points(geometry, material);
+    if (currentPoints) {
+      scene.remove(currentPoints);
+      currentPoints.geometry.dispose();
+    }
+    currentPoints = mesh;
+    scene.add(mesh);
+    const boundingBox: THREE.Box3 = new THREE.Box3();
+    boundingBox.setFromObject(mesh);
+    const maxAxisSize: number = Math.max(boundingBox.max.x - boundingBox.min.x, boundingBox.max.y - boundingBox.min.y, boundingBox.max.z - boundingBox.min.z);
+    const maxDistance: number = maxAxisSize / Math.tan((camera.fov / 2) * (Math.PI / 180));
+    camera.position.set(0, 0, maxDistance * 1.5);
+    camera.updateProjectionMatrix();
   }
-  //updateposition
-  scene.add(mesh);
 
-  camera.position.copy(cameraPosition);
-  camera.lookAt(scene.position);
-
-  camera.updateProjectionMatrix();
-  currentPoints = mesh;
-  render();
 }
-
 function render() {
   renderer.render(scene, camera);
 }
-// Function to handle scene change
 function onSceneChange(sceneType: string) {
   if (sceneType === 'sphere') {
     updateModelColor(currentDimension);
