@@ -23,9 +23,7 @@ const colorMap = {
 }
 let currentDimension: string = 'salinity';
 //scene
-let sphereScene: THREE.Scene;
-let planeScene: THREE.Scene;
-let currentScene: THREE.Scene;
+let currentScene = 'plane';
 
 let geometry = new THREE.BufferGeometry();
 let renderer: THREE.WebGLRenderer;
@@ -60,44 +58,24 @@ document.body.onload = function () {
   initStats();
   animate();
 
-  // Create scenes
-  const sphereScene = new THREE.Scene();
-  const planeScene = new THREE.Scene();
-
-  // Set the initial scene
-
-
-  // Create sphere and plane geometries, materials, and meshes
-  const sphereGeometry = new THREE.SphereGeometry(50, 32, 32);
-  const planeGeometry = new THREE.PlaneGeometry(100, 100);
-  const sphereMaterial = new THREE.PointsMaterial({ size: 0.3, vertexColors: true });
-  const planeMaterial = new THREE.PointsMaterial({ size: 0.3, vertexColors: true });
-  const sphereMesh = new THREE.Points(sphereGeometry, sphereMaterial);
-  const planeMesh = new THREE.Points(planeGeometry, planeMaterial);
-  // Add meshes to scenes
-  sphereScene.add(sphereMesh);
-  planeScene.add(planeMesh);
-
   // create scene change button
   const sceneChangeButton = document.createElement('button');
-  sceneChangeButton.innerText = 'Change Scene';
+  sceneChangeButton.innerText = 'Plane';
   sceneChangeButton.style.position = 'absolute';
-  sceneChangeButton.style.top = '10px';
-  sceneChangeButton.style.left = '10px';
-  
+  sceneChangeButton.style.top = '30px';
+  sceneChangeButton.style.left = '100px';
+
   sceneChangeButton.addEventListener('click', () => {
-    if(currentScene === sphereScene) {
+    if (currentScene === 'plane') {
+      sceneChangeButton.innerText = 'Sphere';
+      currentScene = 'sphere';
       onSceneChange('plane');
-      // currentScene = planeScene;
-      // scene.remove(sphereScene);
-      // scene.add(planeScene);
     } else {
+      sceneChangeButton.innerText = 'Plane';
+      currentScene = 'plane';
       onSceneChange('sphere');
-      // currentScene = sphereScene;
-      // scene.remove(planeScene);
-      // scene.add(sphereScene);
     }
-  }); 
+  });
   document.body.appendChild(sceneChangeButton);
 
   window.onresize = onWindowResize;
@@ -116,7 +94,7 @@ function initGui() {
 function initRender() {
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setClearColor(0xffffff);
+  renderer.setClearColor(0xcccccc);
   renderer.outputEncoding = THREE.LinearEncoding;
   renderer.toneMapping = THREE.NoToneMapping;
   document.body.appendChild(renderer.domElement);
@@ -158,11 +136,11 @@ function initModel() {
     ({ min: minSalinity, max: maxSalinity } = calculateDataRange(data.salinity, data.temperature, data.velocity, 'salinity'));
     ({ min: minTemperature, max: maxTemperature } = calculateDataRange(data.salinity, data.temperature, data.velocity, 'temperature'));
     ({ min: minVelocity, max: maxVelocity } = calculateDataRange(data.salinity, data.temperature, data.velocity, 'velocity'));
-    createModelGeometry(modelData);
+    createModelGeometry();
   })
 }
 
-function createModelGeometry(modelData: any) {
+function createModelGeometry() {
   const points: number[][] = modelData.points;
   const positions: Float32Array = new Float32Array(points.length * 3);
   const colors: Float32Array = new Float32Array(points.length * 3);
@@ -186,10 +164,9 @@ function createModelGeometry(modelData: any) {
   }
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const material = new THREE.PointsMaterial({ size: 0.3, vertexColors: true });
+  const material = new THREE.PointsMaterial({ size: 3, vertexColors: true, sizeAttenuation: false });
   const mesh: THREE.Points = new THREE.Points(geometry, material);
   scene.add(mesh);
-
   currentPoints = mesh;
 
   const boundingBox: THREE.Box3 = new THREE.Box3();
@@ -310,6 +287,36 @@ function updateModelColor(dimension: string) {
     minCurrentValue = minTemperature;
     maxCurrentValue = maxTemperature;
   }
+  const positions: Float32Array = new Float32Array(modelData.points.length * 3);
+  let cameraPosition: THREE.Vector3 = new THREE.Vector3();
+  if (currentScene === "sphere") {
+    for (let i = 0, j = 0; i < modelData.points.length; i++, j += 3) {
+      const point: number[] = modelData.points[i];
+      const longitude = point[0];
+      const latitude = point[1];
+      const depth = point[2];
+      const phi = (90 - latitude) * (Math.PI / 180);
+      const theta = (180 - longitude) * (Math.PI / 180);
+      const radius = 50 + depth;
+      const x = radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.cos(phi);
+      const z = radius * Math.sin(phi) * Math.sin(theta);
+      positions[j] = x;
+      positions[j + 1] = y;
+      positions[j + 2] = z;
+
+      cameraPosition = new THREE.Vector3(0, 0, 200);
+    }
+  } else if (currentScene === "plane") {
+    const centerPoint: number[] = calculateCenterPoint(modelData.points);
+    for (let i = 0, j = 0; i < modelData.points.length; i++, j += 3) {
+      const point: number[] = modelData.points[i];
+      positions[j] = point[0] - centerPoint[0];
+      positions[j + 1] = point[1] - centerPoint[1];
+      positions[j + 2] = point[2] - centerPoint[2];
+    }
+    cameraPosition = new THREE.Vector3(0, 0, 100);
+  }
 
   const colors: Float32Array = new Float32Array(modelData.points.length * 3);
   for (let i = 0, j = 0; i < modelData.points.length; i++, j += 3) {
@@ -319,15 +326,22 @@ function updateModelColor(dimension: string) {
     colors[j + 1] = colorValue.g;
     colors[j + 2] = colorValue.b;
   }
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  const material = new THREE.PointsMaterial({ size: 0.3, vertexColors: true });
+  const material = new THREE.PointsMaterial({ size: 3, vertexColors: true, sizeAttenuation: false });
   const mesh: THREE.Points = new THREE.Points(geometry, material);
-  scene.add(mesh);
 
   if (currentPoints) {
     scene.remove(currentPoints);
     currentPoints.geometry.dispose();
   }
+  //updateposition
+  scene.add(mesh);
+
+  camera.position.copy(cameraPosition);
+  camera.lookAt(scene.position);
+
+  camera.updateProjectionMatrix();
   currentPoints = mesh;
   render();
 }
@@ -338,13 +352,10 @@ function render() {
 // Function to handle scene change
 function onSceneChange(sceneType: string) {
   if (sceneType === 'sphere') {
-    currentScene = sphereScene;
-    scene = sphereScene;
+    updateModelColor(currentDimension);
   } else if (sceneType === 'plane') {
-    currentScene = planeScene;
-    scene = planeScene;
+    updateModelColor(currentDimension);
   }
-  updateModelColor(currentDimension);
   render();
 }
 function onWindowResize() {
