@@ -80,6 +80,7 @@
       });
     }
     var geometry = new THREE.BufferGeometry();
+    var currentPoints;
     function createModelGeometry(modelData) {
       var points = modelData.points;
       var salinity = modelData.salinity;
@@ -145,6 +146,8 @@
 
       var mesh = new THREE.Points(geometry, material);
       scene.add(mesh);
+      currentPoints = mesh;
+
       boundingBox = new THREE.Box3();
       boundingBox.setFromObject(mesh);
 
@@ -239,6 +242,7 @@
       }
       var updateDAtaMin = calculateDataRange(updateData).min;
       var updateDataMax = calculateDataRange(updateData).max;
+      console.log(updateDAtaMin, updateDataMax);
       var colors = [];
       var color = new THREE.Color();
 
@@ -266,6 +270,7 @@
           );
         }
         colors.push(color.r, color.g, color.b);
+        // colors.push(180 / 255, 22 / 255,  5 / 255);
       }
 
       geometry.addAttribute(
@@ -278,6 +283,12 @@
       });
       var points = new THREE.Points(geometry, material);
       scene.add(points);
+      if (currentPoints) {
+        scene.remove(currentPoints);
+        currentPoints.geometry.dispose();
+        currentPoints.material.dispose();
+      }
+      currentPoints = points;
       render();
     }
 
