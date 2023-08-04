@@ -22,6 +22,11 @@ const colorMap = {
   hi, mi, lo
 }
 let currentDimension: string = 'salinity';
+//scene
+let sphereScene: THREE.Scene;
+let planeScene: THREE.Scene;
+let currentScene: THREE.Scene;
+
 let geometry = new THREE.BufferGeometry();
 let renderer: THREE.WebGLRenderer;
 let scene: THREE.Scene;
@@ -54,6 +59,47 @@ document.body.onload = function () {
   initControls();
   initStats();
   animate();
+
+  // Create scenes
+  const sphereScene = new THREE.Scene();
+  const planeScene = new THREE.Scene();
+
+  // Set the initial scene
+
+
+  // Create sphere and plane geometries, materials, and meshes
+  const sphereGeometry = new THREE.SphereGeometry(50, 32, 32);
+  const planeGeometry = new THREE.PlaneGeometry(100, 100);
+  const sphereMaterial = new THREE.PointsMaterial({ size: 0.3, vertexColors: true });
+  const planeMaterial = new THREE.PointsMaterial({ size: 0.3, vertexColors: true });
+  const sphereMesh = new THREE.Points(sphereGeometry, sphereMaterial);
+  const planeMesh = new THREE.Points(planeGeometry, planeMaterial);
+  // Add meshes to scenes
+  sphereScene.add(sphereMesh);
+  planeScene.add(planeMesh);
+
+  // create scene change button
+  const sceneChangeButton = document.createElement('button');
+  sceneChangeButton.innerText = 'Change Scene';
+  sceneChangeButton.style.position = 'absolute';
+  sceneChangeButton.style.top = '10px';
+  sceneChangeButton.style.left = '10px';
+  
+  sceneChangeButton.addEventListener('click', () => {
+    if(currentScene === sphereScene) {
+      onSceneChange('plane');
+      // currentScene = planeScene;
+      // scene.remove(sphereScene);
+      // scene.add(planeScene);
+    } else {
+      onSceneChange('sphere');
+      // currentScene = sphereScene;
+      // scene.remove(planeScene);
+      // scene.add(sphereScene);
+    }
+  }); 
+  document.body.appendChild(sceneChangeButton);
+
   window.onresize = onWindowResize;
 }
 
@@ -95,7 +141,7 @@ function initLight() {
   scene.add(new THREE.AmbientLight(0x444444));
   light = new THREE.AmbientLight(0xffffff);
   light.position.set(0, 50, 50);
-  // light.castShadow = true;
+  light.castShadow = true;
   scene.add(light);
 }
 
@@ -264,7 +310,7 @@ function updateModelColor(dimension: string) {
     minCurrentValue = minTemperature;
     maxCurrentValue = maxTemperature;
   }
-  
+
   const colors: Float32Array = new Float32Array(modelData.points.length * 3);
   for (let i = 0, j = 0; i < modelData.points.length; i++, j += 3) {
     const currentValue: number = updateData[i];
@@ -289,7 +335,18 @@ function updateModelColor(dimension: string) {
 function render() {
   renderer.render(scene, camera);
 }
-
+// Function to handle scene change
+function onSceneChange(sceneType: string) {
+  if (sceneType === 'sphere') {
+    currentScene = sphereScene;
+    scene = sphereScene;
+  } else if (sceneType === 'plane') {
+    currentScene = planeScene;
+    scene = planeScene;
+  }
+  updateModelColor(currentDimension);
+  render();
+}
 function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
