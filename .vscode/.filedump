@@ -1,0 +1,6 @@
+
+		begin
+      f = addfile("/Users/yuanchengshen/Desktop/ocean-current-rendering/public/source.nc","r")
+      print(f)
+		end
+    

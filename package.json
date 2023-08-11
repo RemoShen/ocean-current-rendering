@@ -31,10 +31,13 @@
     "webpack-dev-server": "^4.15.1"
   },
   "dependencies": {
+    "browserify-fs": "^1.0.0",
     "css-loader": "^6.8.1",
     "dat.gui": "^0.7.9",
     "earcut": "^2.2.4",
+    "fs": "^0.0.1-security",
     "json-loader": "^0.5.7",
+    "netcdfjs": "^3.0.0",
     "style-loader": "^3.3.3",
     "three": "^0.155.0",
     "ts-loader": "^9.4.4"

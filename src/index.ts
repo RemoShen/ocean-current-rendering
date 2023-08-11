@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import * as dat from 'dat.gui';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
-import earcut from 'earcut';
+import { parseNc } from './components/parseNc';
 
 interface ModelData {
   points: number[][];
@@ -47,15 +47,16 @@ let minVelocity: number;
 let maxVelocity: number;
 
 document.body.onload = function () {
-  initGui();
-  initRender();
-  initScene();
-  initCamera();
-  initLight();
-  initModel();
-  initControls();
-  initStats();
-  animate();
+  parseNc('./source.nc');
+  // initGui();
+  // initRender();
+  // initScene();
+  // initCamera();
+  // initLight();
+  // initModel();
+  // initControls();
+  // initStats();
+  // animate();
 
   // create scene change button
   const sceneChangeButton = document.createElement('button');
